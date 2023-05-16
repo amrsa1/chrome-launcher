@@ -7,22 +7,21 @@
 
 import fs = require('fs');
 import path = require('path');
-import {homedir} from 'os';
-import {execSync, execFileSync} from 'child_process';
+import { homedir } from 'os';
+import { execSync, execFileSync } from 'child_process';
 import escapeRegExp = require('escape-string-regexp');
-const log = require('lighthouse-logger');
 
-import {getWSLLocalAppDataPath, toWSLPath, ChromePathNotSetError} from './utils';
+import { getWSLLocalAppDataPath, toWSLPath, ChromePathNotSetError } from './utils';
 
 const newLineRegex = /\r?\n/;
 
-type Priorities = Array<{regex: RegExp, weight: number}>;
+type Priorities = Array<{ regex: RegExp, weight: number }>;
 
 /**
  * check for MacOS default app paths first to avoid waiting for the slow lsregister command
  */
-export function darwinFast(): string|undefined {
-  const priorityOptions: Array<string|undefined> = [
+export function darwinFast(): string | undefined {
+  const priorityOptions: Array<string | undefined> = [
     process.env.CHROME_PATH,
     process.env.LIGHTHOUSE_CHROMIUM_PATH,
     '/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary',
@@ -40,8 +39,8 @@ export function darwin() {
   const suffixes = ['/Contents/MacOS/Google Chrome Canary', '/Contents/MacOS/Google Chrome'];
 
   const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework' +
-      '/Versions/A/Frameworks/LaunchServices.framework' +
-      '/Versions/A/Support/lsregister';
+    '/Versions/A/Frameworks/LaunchServices.framework' +
+    '/Versions/A/Support/lsregister';
 
   const installations: Array<string> = [];
 
@@ -51,39 +50,39 @@ export function darwin() {
   }
 
   execSync(
-      `${LSREGISTER} -dump` +
-      ' | grep -i \'google chrome\\( canary\\)\\?\\.app\'' +
-      ' | awk \'{$1=""; print $0}\'')
-      .toString()
-      .split(newLineRegex)
-      .forEach((inst: string) => {
-        suffixes.forEach(suffix => {
-          const execPath = path.join(inst.substring(0, inst.indexOf('.app') + 4).trim(), suffix);
-          if (canAccess(execPath) && installations.indexOf(execPath) === -1) {
-            installations.push(execPath);
-          }
-        });
+    `${LSREGISTER} -dump` +
+    ' | grep -i \'google chrome\\( canary\\)\\?\\.app\'' +
+    ' | awk \'{$1=""; print $0}\'')
+    .toString()
+    .split(newLineRegex)
+    .forEach((inst: string) => {
+      suffixes.forEach(suffix => {
+        const execPath = path.join(inst.substring(0, inst.indexOf('.app') + 4).trim(), suffix);
+        if (canAccess(execPath) && installations.indexOf(execPath) === -1) {
+          installations.push(execPath);
+        }
       });
+    });
 
 
   // Retains one per line to maintain readability.
   // clang-format off
   const home = escapeRegExp(process.env.HOME || homedir());
   const priorities: Priorities = [
-    {regex: new RegExp(`^${home}/Applications/.*Chrome\\.app`), weight: 50},
-    {regex: new RegExp(`^${home}/Applications/.*Chrome Canary\\.app`), weight: 51},
-    {regex: /^\/Applications\/.*Chrome.app/, weight: 100},
-    {regex: /^\/Applications\/.*Chrome Canary.app/, weight: 101},
-    {regex: /^\/Volumes\/.*Chrome.app/, weight: -2},
-    {regex: /^\/Volumes\/.*Chrome Canary.app/, weight: -1},
+    { regex: new RegExp(`^${home}/Applications/.*Chrome\\.app`), weight: 50 },
+    { regex: new RegExp(`^${home}/Applications/.*Chrome Canary\\.app`), weight: 51 },
+    { regex: /^\/Applications\/.*Chrome.app/, weight: 100 },
+    { regex: /^\/Applications\/.*Chrome Canary.app/, weight: 101 },
+    { regex: /^\/Volumes\/.*Chrome.app/, weight: -2 },
+    { regex: /^\/Volumes\/.*Chrome Canary.app/, weight: -1 },
   ];
 
   if (process.env.LIGHTHOUSE_CHROMIUM_PATH) {
-    priorities.unshift({regex: new RegExp(escapeRegExp(process.env.LIGHTHOUSE_CHROMIUM_PATH)), weight: 150});
+    priorities.unshift({ regex: new RegExp(escapeRegExp(process.env.LIGHTHOUSE_CHROMIUM_PATH)), weight: 150 });
   }
 
   if (process.env.CHROME_PATH) {
-    priorities.unshift({regex: new RegExp(escapeRegExp(process.env.CHROME_PATH)), weight: 151});
+    priorities.unshift({ regex: new RegExp(escapeRegExp(process.env.CHROME_PATH)), weight: 151 });
   }
 
   // clang-format on
@@ -96,10 +95,12 @@ function resolveChromePath() {
   }
 
   if (canAccess(process.env.LIGHTHOUSE_CHROMIUM_PATH)) {
-    log.warn(
+    import('lighthouse-logger').then((log) => {
+      log.warn(
         'ChromeLauncher',
         'LIGHTHOUSE_CHROMIUM_PATH is deprecated, use CHROME_PATH env variable instead.');
-    return process.env.LIGHTHOUSE_CHROMIUM_PATH;
+      return process.env.LIGHTHOUSE_CHROMIUM_PATH;
+    });
   }
 
   return undefined;
@@ -139,7 +140,7 @@ export function linux() {
   executables.forEach((executable: string) => {
     try {
       const chromePath =
-          execFileSync('which', [executable], {stdio: 'pipe'}).toString().split(newLineRegex)[0];
+        execFileSync('which', [executable], { stdio: 'pipe' }).toString().split(newLineRegex)[0];
 
       if (canAccess(chromePath)) {
         installations.push(chromePath);
@@ -154,20 +155,20 @@ export function linux() {
   }
 
   const priorities: Priorities = [
-    {regex: /chrome-wrapper$/, weight: 51},
-    {regex: /google-chrome-stable$/, weight: 50},
-    {regex: /google-chrome$/, weight: 49},
-    {regex: /chromium-browser$/, weight: 48},
-    {regex: /chromium$/, weight: 47},
+    { regex: /chrome-wrapper$/, weight: 51 },
+    { regex: /google-chrome-stable$/, weight: 50 },
+    { regex: /google-chrome$/, weight: 49 },
+    { regex: /chromium-browser$/, weight: 48 },
+    { regex: /chromium$/, weight: 47 },
   ];
 
   if (process.env.LIGHTHOUSE_CHROMIUM_PATH) {
     priorities.unshift(
-        {regex: new RegExp(escapeRegExp(process.env.LIGHTHOUSE_CHROMIUM_PATH)), weight: 100});
+      { regex: new RegExp(escapeRegExp(process.env.LIGHTHOUSE_CHROMIUM_PATH)), weight: 100 });
   }
 
   if (process.env.CHROME_PATH) {
-    priorities.unshift({regex: new RegExp(escapeRegExp(process.env.CHROME_PATH)), weight: 101});
+    priorities.unshift({ regex: new RegExp(escapeRegExp(process.env.CHROME_PATH)), weight: 101 });
   }
 
   return sort(uniq(installations.filter(Boolean)), priorities);
@@ -178,7 +179,7 @@ export function wsl() {
   process.env.LOCALAPPDATA = getWSLLocalAppDataPath(`${process.env.PATH}`);
   process.env.PROGRAMFILES = toWSLPath('C:/Program Files', '/mnt/c/Program Files');
   process.env['PROGRAMFILES(X86)'] =
-      toWSLPath('C:/Program Files (x86)', '/mnt/c/Program Files (x86)');
+    toWSLPath('C:/Program Files (x86)', '/mnt/c/Program Files (x86)');
 
   return win32();
 }
@@ -210,22 +211,22 @@ export function win32() {
 function sort(installations: string[], priorities: Priorities) {
   const defaultPriority = 10;
   return installations
-      // assign priorities
-      .map((inst: string) => {
-        for (const pair of priorities) {
-          if (pair.regex.test(inst)) {
-            return {path: inst, weight: pair.weight};
-          }
+    // assign priorities
+    .map((inst: string) => {
+      for (const pair of priorities) {
+        if (pair.regex.test(inst)) {
+          return { path: inst, weight: pair.weight };
         }
-        return {path: inst, weight: defaultPriority};
-      })
-      // sort based on priorities
-      .sort((a, b) => (b.weight - a.weight))
-      // remove priority flag
-      .map(pair => pair.path);
+      }
+      return { path: inst, weight: defaultPriority };
+    })
+    // sort based on priorities
+    .sort((a, b) => (b.weight - a.weight))
+    // remove priority flag
+    .map(pair => pair.path);
 }
 
-function canAccess(file: string|undefined): Boolean {
+function canAccess(file: string | undefined): Boolean {
   if (!file) {
     return false;
   }
@@ -257,15 +258,15 @@ function findChromeExecutables(folder: string): Array<string> {
     // See https://github.com/GoogleChrome/chrome-launcher/issues/46 for more context.
     try {
       execPaths = execSync(
-          `grep -ER "${chromeExecRegex}" ${folder} | awk -F '=' '{print $2}'`, {stdio: 'pipe'});
+        `grep -ER "${chromeExecRegex}" ${folder} | awk -F '=' '{print $2}'`, { stdio: 'pipe' });
     } catch (e) {
       execPaths = execSync(
-          `grep -Er "${chromeExecRegex}" ${folder} | awk -F '=' '{print $2}'`, {stdio: 'pipe'});
+        `grep -Er "${chromeExecRegex}" ${folder} | awk -F '=' '{print $2}'`, { stdio: 'pipe' });
     }
 
     execPaths = execPaths.toString()
-                    .split(newLineRegex)
-                    .map((execPath: string) => execPath.replace(argumentsRegex, '$1'));
+      .split(newLineRegex)
+      .map((execPath: string) => execPath.replace(argumentsRegex, '$1'));
 
     execPaths.forEach((execPath: string) => canAccess(execPath) && installations.push(execPath));
   }
